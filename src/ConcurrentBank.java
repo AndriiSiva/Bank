@@ -11,7 +11,10 @@ public class ConcurrentBank {
         bankLock = new ReentrantLock();
     }
 
-    public String createAccount(double initialBalance) {
+    public String createAccount(double initialBalance) throws InvalidAmountException {
+        if (initialBalance < 0) {
+            throw new InvalidAmountException("Initial balance cannot be negative: " + initialBalance);
+        }
         bankLock.lock();
         try {
             String accountNumber = "ACC" + System.currentTimeMillis();
@@ -23,18 +26,24 @@ public class ConcurrentBank {
         }
     }
 
-    public boolean transfer(String fromAccountNumber, String toAccountNumber, double amount) {
-        if (amount <= 0 || fromAccountNumber.equals(toAccountNumber)) {
-            return false;
+    public void transfer(String fromAccountNumber, String toAccountNumber, double amount)
+            throws InvalidAmountException, InsufficientFundsException, AccountNotFoundException {
+        if (amount <= 0) {
+            throw new InvalidAmountException("Transfer amount must be positive: " + amount);
+        }
+        if (fromAccountNumber.equals(toAccountNumber)) {
+            throw new InvalidAmountException("Cannot transfer to the same account");
         }
 
         BankAccount fromAccount = accounts.get(fromAccountNumber);
         BankAccount toAccount = accounts.get(toAccountNumber);
 
-        if (fromAccount == null || toAccount == null) {
-            return false;
+        if (fromAccount == null) {
+            throw new AccountNotFoundException("Source account not found: " + fromAccountNumber);
         }
-
+        if (toAccount == null) {
+            throw new AccountNotFoundException("Destination account not found: " + toAccountNumber);
+        }
 
         BankAccount firstLock = fromAccountNumber.compareTo(toAccountNumber) < 0 ? fromAccount : toAccount;
         BankAccount secondLock = fromAccountNumber.compareTo(toAccountNumber) < 0 ? toAccount : fromAccount;
@@ -43,11 +52,8 @@ public class ConcurrentBank {
         try {
             secondLock.lock.lock();
             try {
-                if (fromAccount.withdraw(amount)) {
-                    toAccount.deposit(amount);
-                    return true;
-                }
-                return false;
+                fromAccount.withdraw(amount);
+                toAccount.deposit(amount);
             } finally {
                 secondLock.lock.unlock();
             }
@@ -69,7 +75,11 @@ public class ConcurrentBank {
         }
     }
 
-    public BankAccount getAccount(String accountNumber) {
-        return accounts.get(accountNumber);
+    public BankAccount getAccount(String accountNumber) throws AccountNotFoundException {
+        BankAccount account = accounts.get(accountNumber);
+        if (account == null) {
+            throw new AccountNotFoundException("Account not found: " + accountNumber);
+        }
+        return account;
     }
 }

@@ -12,30 +12,29 @@ public class BankAccount {
         this.lock = new ReentrantLock();
     }
 
-    public boolean deposit(double amount) {
+    public void deposit(double amount) throws InvalidAmountException {
         if (amount <= 0) {
-            return false;
+            throw new InvalidAmountException("Deposit amount must be positive: " + amount);
         }
         lock.lock();
         try {
             balance += amount;
-            return true;
         } finally {
             lock.unlock();
         }
     }
 
-    public boolean withdraw(double amount) {
+    public void withdraw(double amount) throws InvalidAmountException, InsufficientFundsException {
         if (amount <= 0) {
-            return false;
+            throw new InvalidAmountException("Withdrawal amount must be positive: " + amount);
         }
         lock.lock();
         try {
-            if (balance >= amount) {
-                balance -= amount;
-                return true;
+            if (balance < amount) {
+                throw new InsufficientFundsException(
+                        "Insufficient funds. Current balance: " + balance + ", requested: " + amount);
             }
-            return false;
+            balance -= amount;
         } finally {
             lock.unlock();
         }
@@ -54,4 +53,3 @@ public class BankAccount {
         return accountNumber;
     }
 }
-
